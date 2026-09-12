@@ -1,0 +1,23 @@
+#python 
+__pycache__/ 
+*.py[cod]
+
+#virtual environment 
+.venv/
+
+#jupyter 
+.ipynb_checkpoints/
+
+#environment variables 
+.env 
+
+#IDE 
+.vscode/
+
+#Data 
+data/raw/
+data/processed/
+
+#os 
+.DS_Store 
+Thumbs.db 
