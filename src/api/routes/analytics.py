@@ -1,8 +1,23 @@
 from pathlib import Path
-
+import math
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from src.api.schemas import AnalyticsStatusResponse
+
+
+def clean_for_json(data):
+    if isinstance(data, dict):
+        return {key: clean_for_json(value) for key, value in data.items()}
+
+    if isinstance(data, list):
+        return [clean_for_json(value) for value in data]
+
+    if isinstance(data, float):
+        if math.isnan(data) or math.isinf(data):
+            return None
+
+    return data
+
 
 router = APIRouter(
     prefix="/analytics",
@@ -74,19 +89,14 @@ async def customer_segments():
     }
 
 
-# ---------------------------------------------------------
-# 9.12 — Product Performance
+# -# ---------------------------------------------------------
+# 10.12 — Product Performance Endpoint
 # ---------------------------------------------------------
 
 @router.get("/products")
 async def product_performance():
 
-    file_path = (
-        PROJECT_ROOT
-        / "data"
-        / "processed"
-        / "business_product_performance.csv"
-    )
+    file_path = PROCESSED_DIR / "business_product_performance.csv"
 
     if not file_path.exists():
         raise HTTPException(
@@ -94,16 +104,40 @@ async def product_performance():
             detail="Product performance data not found."
         )
 
-    df = pd.read_csv(file_path)
+    try:
+        df = pd.read_csv(file_path)
 
-    return {
-        "status": "success",
-        "rows": len(df),
-        "columns": df.columns.tolist(),
-        "products": df.to_dict(orient="records")
-    }
+        # Replace infinite values with missing values
+        df = df.replace([float("inf"), float("-inf")], pd.NA)
 
+        # Convert missing values to JSON-safe None
+        df = df.astype(object).where(pd.notna(df), None)
 
+        products = df.to_dict(orient="records")
+
+        result = {
+            "status": "success",
+            "rows": len(products),
+            "columns": df.columns.tolist(),
+            "products": products
+        }
+
+        return clean_for_json(result)
+
+    except Exception as e:
+        import traceback
+
+        print("\n===== PRODUCT API ERROR =====")
+        print(str(e))
+        traceback.print_exc()
+        print("=============================\n")
+
+        return {
+            "status": "error",
+            "message": str(e),
+            "path": "/analytics/products"
+        }
+         
 # ---------------------------------------------------------
 # 9.13 — Country Performance
 # ---------------------------------------------------------

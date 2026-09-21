@@ -1,3 +1,4 @@
+import traceback
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,16 +40,28 @@ async def root():
 async def health_check():
     return {
         "status": "healthy"
-    }@app.exception_handler(Exception)
-async def global_exception_handler(
-    request: Request,
-    exc: Exception
-):
+    }
+
+# 10.12 - Temporary detailed error handler
+
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+
+    print("\n" + "=" * 70)
+    print("FASTAPI ERROR")
+    print("=" * 70)
+
+    traceback.print_exc()
+
+    print("=" * 70 + "\n")
+
     return JSONResponse(
         status_code=500,
         content={
             "status": "error",
-            "message": "An unexpected error occurred.",
-            "path": str(request.url.path)
+            "message": str(exc),
+            "path": request.url.path
         }
     )
