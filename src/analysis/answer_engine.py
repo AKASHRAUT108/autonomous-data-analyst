@@ -132,76 +132,56 @@ def answer_question(question: str, question_type: str) -> str:
 
 
     # --------------------------------
-    # CUSTOMER SEGMENT
     if question_type == "segment":
-        file_path = PROCESSED_DIR / "customer_segment_summary.csv"
+        file_path = PROCESSED_DIR / "customer_rfm_segments.csv"
 
         if not file_path.exists():
-            return "Customer segment data is not available."
+            return "Customer RFM segment data is not available."
 
         df = pd.read_csv(file_path)
 
-        # Normalize column names for matching
-        column_map = {
-            column.strip().lower().replace(" ", "_"): column
-            for column in df.columns
-        }
-
-        # Find segment column
+        # Find the actual segment column
         segment_column = None
+        monetary_column = None
 
-        for key, original_column in column_map.items():
-            if (
-                key == "segment"
-                or "segment" in key
-            ):
-                segment_column = original_column
-                break
+        for column in df.columns:
+            column_lower = str(column).strip().lower()
 
-        # Find customer-value column
-        value_column = None
+            if column_lower == "segment":
+                segment_column = column
 
-        preferred_value_names = [
-            "avg_monetary",
-            "average_monetary",
-            "avg_customer_value",
-            "average_customer_value",
-            "monetary",
-            "avg_revenue",
-            "average_revenue",
-            "revenue"
-        ]
-
-        for name in preferred_value_names:
-            if name in column_map:
-                value_column = column_map[name]
-                break
+            if column_lower == "monetary":
+                monetary_column = column
 
         if segment_column is None:
-            return (
-                "Customer segment name information "
-                "is not available."
-            )
+            return "Customer segment information is not available."
 
-        if value_column is None:
-            return (
-                "Customer segment value information "
-                "is not available."
-            )
+        if monetary_column is None:
+            return "Customer monetary value information is not available."
 
-        # Make sure the value column is numeric
-        df[value_column] = pd.to_numeric(
-            df[value_column],
+        # Convert monetary values to numeric
+        df[monetary_column] = pd.to_numeric(
+            df[monetary_column],
             errors="coerce"
         )
 
-        df = df.dropna(subset=[value_column])
+        df = df.dropna(
+            subset=[segment_column, monetary_column]
+        )
 
         if df.empty:
             return "Customer segment value data is not available."
 
-        top_segment = df.sort_values(
-            value_column,
+        # Calculate average customer value for each segment
+        segment_values = (
+            df.groupby(segment_column)[monetary_column]
+            .mean()
+            .reset_index()
+        )
+
+        # Find segment with highest average customer value
+        top_segment = segment_values.sort_values(
+            monetary_column,
             ascending=False
         ).iloc[0]
 
@@ -210,7 +190,7 @@ def answer_question(question: str, question_type: str) -> str:
         )
 
         average_value = float(
-            top_segment[value_column]
+            top_segment[monetary_column]
         )
 
         return (
@@ -220,61 +200,6 @@ def answer_question(question: str, question_type: str) -> str:
             f"with an average value of "
             f"{average_value:,.2f}."
         )
-    # --------------------------------
-    # COUNTRY
-    # --------------------------------
-    if question_type == "country":
-
-        file_path = (
-            PROCESSED_DIR /
-            "business_country_performance.csv"
-        )
-
-        if not file_path.exists():
-            return "Country performance data is not available."
-
-        df = pd.read_csv(file_path)
-
-        revenue_column = None
-        country_column = None
-
-        for column in df.columns:
-
-            column_lower = column.lower()
-
-            if column_lower in [
-                "revenue",
-                "total_revenue",
-                "sales",
-                "total_sales"
-            ]:
-                revenue_column = column
-
-            if column_lower in [
-                "country",
-                "countries"
-            ]:
-                country_column = column
-
-        if revenue_column is None:
-            return "Country revenue information is not available."
-
-        if country_column is None:
-            return "Country name information is not available."
-
-        top_country = df.sort_values(
-            revenue_column,
-            ascending=False
-        ).iloc[0]
-
-        return (
-            f"The country with the highest revenue is "
-            f"{top_country[country_column]}, "
-            f"with revenue of "
-            f"{float(top_country[revenue_column]):,.2f}."
-        )
-
-
     # --------------------------------
     # UNKNOWN QUESTION
     # --------------------------------
