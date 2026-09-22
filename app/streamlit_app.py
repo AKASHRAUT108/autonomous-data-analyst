@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 import streamlit as st
-
+import requests
 
 
 API_URL = "http://127.0.0.1:8000"
@@ -1153,3 +1153,179 @@ except requests.exceptions.RequestException as e:
     st.error(
         f"Unable to connect to high-value customer endpoint: {e}"
     )
+
+# =========================================================
+# AI ANALYST
+# =========================================================
+
+st.divider()
+
+st.header("🤖 AI Analyst")
+
+st.write(
+    "Ask a business question using natural language."
+)
+
+question = st.text_input(
+    "Ask your question",
+    placeholder="Example: What is the total revenue?"
+)
+
+if st.button("Analyze Question"):
+
+    if not question.strip():
+
+        st.warning(
+            "Please enter a question."
+        )
+
+    else:
+
+        try:
+
+            response = requests.get(
+                f"{API_BASE_URL}/analytics/ask",
+                params={
+                    "question": question
+                },
+                timeout=10
+            )
+
+            if response.status_code == 200:
+
+                result = response.json()
+
+                if result.get("status") == "success":
+
+                    st.success(
+                        result.get(
+                            "answer",
+                            "No answer returned."
+                        )
+                    )
+
+                else:
+
+                    st.error(
+                        result.get(
+                            "answer",
+                            result.get(
+                                "message",
+                                "Unable to analyze question."
+                            )
+                        )
+                    )
+
+            else:
+
+                st.error(
+                    f"AI Analyst returned status code "
+                    f"{response.status_code}"
+                )
+
+        except requests.exceptions.RequestException as e:
+
+            st.error(
+                f"Could not connect to FastAPI: {e}"
+            )
+
+# ==========================================
+# ==========================================
+# AI BUSINESS ANALYST
+# ==========================================
+
+st.header("🤖 AI Business Analyst")
+
+st.write(
+    "Ask questions about your business data "
+    "using natural language."
+)
+
+st.markdown("### Example questions")
+
+example_questions = [
+    "What is the total revenue?",
+    "How many customers are there?",
+    "What is the top product?",
+    "Which customer segment has the highest value?",
+    "How many orders are there?"
+]
+
+selected_question = st.selectbox(
+    "Choose an example question",
+    ["Select a question"] + example_questions
+)
+
+question = st.text_input(
+    "Or enter your own question",
+    placeholder="Example: What is the total revenue?"
+)
+
+if selected_question != "Select a question" and not question:
+    question = selected_question
+
+if st.button("Ask Analyst"):
+
+    if not question.strip():
+
+        st.warning(
+            "Please enter or select a question."
+        )
+
+    else:
+
+        try:
+
+            response = requests.get(
+                "http://127.0.0.1:8000/analytics/ask",
+                params={"question": question},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+
+                result = response.json()
+
+                if result.get("status") == "success":
+
+                    st.success("Analysis complete")
+
+                    st.markdown("### Answer")
+
+                    st.info(
+                        result.get("answer", "")
+                    )
+
+                    st.caption(
+                        f"Detected operation: "
+                        f"{result.get('question_type', 'unknown')}"
+                    )
+
+                else:
+
+                    st.error(
+                        result.get(
+                            "message",
+                            "Unable to process the question."
+                        )
+                    )
+
+            else:
+
+                st.error(
+                    f"API request failed: "
+                    f"{response.status_code}"
+                )
+
+        except requests.exceptions.ConnectionError:
+
+            st.error(
+                "Could not connect to the FastAPI server. "
+                "Please make sure the FastAPI server is running."
+            )
+
+        except requests.exceptions.RequestException as e:
+
+            st.error(
+                f"Request failed: {e}"
+            )

@@ -74,13 +74,8 @@ def answer_question(question: str, question_type: str) -> str:
 
     # --------------------------------
     # TOP PRODUCT
-    # --------------------------------
     if question_type == "top_product":
-
-        file_path = (
-            PROCESSED_DIR /
-            "business_product_performance.csv"
-        )
+        file_path = PROCESSED_DIR / "business_product_performance.csv"
 
         if not file_path.exists():
             return "Product performance data is not available."
@@ -88,10 +83,12 @@ def answer_question(question: str, question_type: str) -> str:
         df = pd.read_csv(file_path)
 
         revenue_column = None
+        product_column = None
 
         for column in df.columns:
+            column_lower = column.lower().strip()
 
-            if column.lower() in [
+            if column_lower in [
                 "revenue",
                 "total_revenue",
                 "monetary",
@@ -99,7 +96,15 @@ def answer_question(question: str, question_type: str) -> str:
                 "sales"
             ]:
                 revenue_column = column
-                break
+
+            if column_lower in [
+                "product",
+                "description",
+                "product_name",
+                "stockcode",
+                "stock_code"
+            ]:
+                product_column = column
 
         if revenue_column is None:
             return "Product revenue information is not available."
@@ -109,43 +114,112 @@ def answer_question(question: str, question_type: str) -> str:
             ascending=False
         ).iloc[0]
 
+        revenue = float(top_product[revenue_column])
+
+        if product_column is not None:
+            product_name = str(top_product[product_column])
+
+            return (
+                f"The top product was "
+                f"'{product_name}', "
+                f"generating {revenue:,.2f} in revenue."
+            )
+
         return (
             f"The top product generated "
-            f"{float(top_product[revenue_column]):,.2f} "
-            f"in revenue."
+            f"{revenue:,.2f} in revenue."
         )
 
 
     # --------------------------------
     # CUSTOMER SEGMENT
-    # --------------------------------
     if question_type == "segment":
-
-        file_path = (
-            PROCESSED_DIR /
-            "customer_segment_summary.csv"
-        )
+        file_path = PROCESSED_DIR / "customer_segment_summary.csv"
 
         if not file_path.exists():
             return "Customer segment data is not available."
 
         df = pd.read_csv(file_path)
 
-        if "avg_monetary" not in df.columns:
+        # Normalize column names for matching
+        column_map = {
+            column.strip().lower().replace(" ", "_"): column
+            for column in df.columns
+        }
+
+        # Find segment column
+        segment_column = None
+
+        for key, original_column in column_map.items():
+            if (
+                key == "segment"
+                or "segment" in key
+            ):
+                segment_column = original_column
+                break
+
+        # Find customer-value column
+        value_column = None
+
+        preferred_value_names = [
+            "avg_monetary",
+            "average_monetary",
+            "avg_customer_value",
+            "average_customer_value",
+            "monetary",
+            "avg_revenue",
+            "average_revenue",
+            "revenue"
+        ]
+
+        for name in preferred_value_names:
+            if name in column_map:
+                value_column = column_map[name]
+                break
+
+        if segment_column is None:
+            return (
+                "Customer segment name information "
+                "is not available."
+            )
+
+        if value_column is None:
+            return (
+                "Customer segment value information "
+                "is not available."
+            )
+
+        # Make sure the value column is numeric
+        df[value_column] = pd.to_numeric(
+            df[value_column],
+            errors="coerce"
+        )
+
+        df = df.dropna(subset=[value_column])
+
+        if df.empty:
             return "Customer segment value data is not available."
 
         top_segment = df.sort_values(
-            "avg_monetary",
+            value_column,
             ascending=False
         ).iloc[0]
 
-        return (
-            f"The segment with the highest "
-            f"average customer value is "
-            f"{top_segment['segment']}."
+        segment_name = str(
+            top_segment[segment_column]
         )
 
+        average_value = float(
+            top_segment[value_column]
+        )
 
+        return (
+            f"The customer segment with the highest "
+            f"average customer value is "
+            f"'{segment_name}', "
+            f"with an average value of "
+            f"{average_value:,.2f}."
+        )
     # --------------------------------
     # COUNTRY
     # --------------------------------
