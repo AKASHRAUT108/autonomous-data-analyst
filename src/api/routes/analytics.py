@@ -3,6 +3,8 @@ import math
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from src.api.schemas import AnalyticsStatusResponse
+from src.analysis.ai_analyst import classify_question
+from src.analysis.answer_engine import answer_question
 
 
 def clean_for_json(data):
@@ -298,50 +300,7 @@ async def high_value_customers():
 # ---------------------------------------------------------
 # 9.18 — Dataset Status
 # ---------------------------------------------------------
-
-@router.get("/status")
-async def analytics_status():
-
-    files = {
-        "business_overview":
-            PROJECT_ROOT / "data" / "processed" / "business_overview.csv",
-
-        "customer_segments":
-            PROJECT_ROOT / "data" / "processed" / "customer_segment_summary.csv",
-
-        "product_performance":
-            PROJECT_ROOT / "data" / "processed" / "business_product_performance.csv",
-
-        "country_performance":
-            PROJECT_ROOT / "data" / "processed" / "business_country_performance.csv",
-
-        "ml_opportunities":
-            PROJECT_ROOT / "data" / "processed" / "customer_opportunity_summary.csv",
-
-        "recommendations":
-            PROJECT_ROOT / "data" / "processed" / "business_recommendations.csv",
-
-        "insights":
-            PROJECT_ROOT / "data" / "processed" / "business_insights.csv",
-
-        "rfm_segments":
-            PROJECT_ROOT / "data" / "processed" / "customer_rfm_segments.csv"
-    }
-
-    status = {
-        name: path.exists()
-        for name, path in files.items()
-    }
-
-    available = sum(status.values())
-    total = len(status)
-
-    return {
-        "status": "success",
-        "available_files": available,
-        "total_files": total,
-        "datasets": status
-    }@router.get(
+@router.get(
     "/status",
     response_model=AnalyticsStatusResponse
 )
@@ -386,4 +345,188 @@ async def analytics_status():
         "available_files": available,
         "total_files": total,
         "datasets": status
+    }
+
+# ---------------------------------------------------------
+# 11.1 — AI Analyst
+# ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# 11.7 — AI Analyst API
+# ---------------------------------------------------------
+
+@router.get("/ask")
+async def ask_analyst(question: str):
+
+    if not question.strip():
+        return {
+            "status": "error",
+            "question": question,
+            "message": "Please provide a question."
+        }
+
+    question_type = classify_question(question)
+
+    answer = answer_question(
+        question,
+        question_type
+    )
+
+    return {
+        "status": "success",
+        "question": question,
+        "question_type": question_type,
+        "answer": answer
+    }
+    # -----------------------------------------
+    # Revenue questions
+    # -----------------------------------------
+
+    if "total revenue" in question_lower:
+
+        file_path = (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / "business_overview.csv"
+        )
+
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Business overview data not found."
+            )
+
+        df = pd.read_csv(file_path)
+
+        return {
+            "status": "success",
+            "question": question,
+            "answer": f"Total revenue generated was approximately {df['total_revenue'].iloc[0]:,.2f}."
+        }
+
+    # -----------------------------------------
+    # Customer questions
+    # -----------------------------------------
+
+    if "customer" in question_lower and "count" in question_lower:
+
+        file_path = (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / "business_overview.csv"
+        )
+
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Business overview data not found."
+            )
+
+        df = pd.read_csv(file_path)
+
+        return {
+            "status": "success",
+            "question": question,
+            "answer": f"The analysis contains approximately {int(df['total_customers'].iloc[0]):,} customers."
+        }
+
+    # -----------------------------------------
+    # Product questions
+    # -----------------------------------------
+
+    if "top product" in question_lower:
+
+        file_path = (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / "business_product_performance.csv"
+        )
+
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Product performance data not found."
+            )
+
+        df = pd.read_csv(file_path)
+
+        revenue_column = None
+
+        for column in df.columns:
+            if column.lower() in ["revenue", "total_revenue"]:
+                revenue_column = column
+                break
+
+        if revenue_column is None:
+            return {
+                "status": "error",
+                "question": question,
+                "answer": "Revenue information is not available in the product dataset."
+            }
+
+        top_product = df.sort_values(
+            revenue_column,
+            ascending=False
+        ).iloc[0]
+
+        return {
+            "status": "success",
+            "question": question,
+            "answer": (
+                f"The top-performing product generated "
+                f"{top_product[revenue_column]:,.2f} in revenue."
+            )
+        }
+
+    # -----------------------------------------
+    # Segment questions
+    # -----------------------------------------
+
+    if "segment" in question_lower:
+
+        file_path = (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / "customer_segment_summary.csv"
+        )
+
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Customer segment data not found."
+            )
+
+        df = pd.read_csv(file_path)
+
+        if "avg_monetary" in df.columns:
+
+            top_segment = df.sort_values(
+                "avg_monetary",
+                ascending=False
+            ).iloc[0]
+
+            return {
+                "status": "success",
+                "question": question,
+                "answer": (
+                    f"The segment with the highest average customer value "
+                    f"is {top_segment['segment']}."
+                )
+            }
+
+    # -----------------------------------------
+    # Default response
+    # -----------------------------------------
+
+    return {
+        "status": "success",
+        "question": question,
+        "answer": (
+            "I could not identify a specific analytical operation for this question yet. "
+            "Try asking about total revenue, customer count, top product, or customer segments."
+        )
     }
