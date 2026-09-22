@@ -1,10 +1,18 @@
 import requests
-import pandas as pd
 import streamlit as st
 import requests
+import pandas as pd
+
+# ==========================================
+# AI ANALYST SESSION STATE
+# ==========================================
+
+if "ai_chat_history" not in st.session_state:
+    st.session_state.ai_chat_history = []
 
 
 API_URL = "http://127.0.0.1:8000"
+API_BASE_URL = API_URL
 
 
 st.set_page_config(
@@ -1228,12 +1236,52 @@ if st.button("Analyze Question"):
             st.error(
                 f"Could not connect to FastAPI: {e}"
             )
+# ==========================================
+# PREVIOUS ANALYSIS
+# ==========================================
+if st.session_state.ai_chat_history:
 
+    st.markdown("---")
+
+    st.subheader("📜 Previous Analysis")
+
+    if st.button("🗑️ Clear Analysis History"):
+
+        st.session_state.ai_chat_history = []
+
+        st.rerun()
+
+    for i, chat in enumerate(
+        reversed(st.session_state.ai_chat_history),
+        start=1
+    ):
+
+        with st.expander(
+            f"Question {i}: {chat['question']}"
+        ):
+
+            st.markdown(
+                f"**Question:** {chat['question']}"
+            )
+
+            st.markdown(
+                f"**Answer:** {chat['answer']}"
+            )
+
+            st.caption(
+                f"Operation: {chat['question_type']}"
+            )
 # ==========================================
 # ==========================================
 # AI BUSINESS ANALYST
 # ==========================================
 
+# ==========================================
+# AI ANALYST CHAT HISTORY
+# ==========================================
+
+if "ai_chat_history" not in st.session_state:
+    st.session_state.ai_chat_history = []
 st.header("🤖 AI Business Analyst")
 
 st.write(
