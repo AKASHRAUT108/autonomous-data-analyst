@@ -1,24 +1,34 @@
-#python 
-__pycache__/ 
-*.py[cod]
-
-#virtual environment 
+# Virtual environments
 .venv/
+venv/
+.v/
 
-#jupyter 
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
 .ipynb_checkpoints/
 
-#environment variables 
-.env 
-
-#IDE 
-.vscode/
-
-#Data 
+# Raw and processed datasets
 data/raw/
 data/processed/
-models/
 
-#os 
-.DS_Store 
-Thumbs.db 
+# Power BI
+powerbi/
+*.pbix
+
+# Environment variables
+.env
+.env.*
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+
+# Trained machine learning models
+models/
+*.pkl
+*.joblib

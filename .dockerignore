@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc 
+.ipynb_checkpoints/
+.git/
+.gitignore 
+
+data/raw/
+notebooks/
+tests/
+
+powerbi/
+*.pbix 
+
+.env 
+.env.*

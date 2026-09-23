@@ -5,7 +5,10 @@ from fastapi import APIRouter, HTTPException
 from src.api.schemas import AnalyticsStatusResponse
 from src.analysis.ai_analyst import classify_question
 from src.analysis.answer_engine import answer_question
+from pathlib import Path
 
+
+PROCESSED_DIR = Path("data/processed")
 
 def clean_for_json(data):
     if isinstance(data, dict):
